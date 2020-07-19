@@ -19,11 +19,11 @@ void ShowCerts(SSL * ssl);
 
 int main(int argc, char **argv) 
 {
-	int									sockfd, len;
-	struct sockaddr_in					dest;
+	int								sockfd, len;
+	struct sockaddr_in						dest;
 	char								buffer[MAXBUF + 1];
 	SSL_CTX								*ctx;
-	SSL									*ssl;
+	SSL								*ssl;
 	ip_port								ip_port_st;
 
 	/*get ip、port*/
@@ -120,8 +120,8 @@ SSL_CTX * SSL_init()
 
 int socket_init(ip_port ip_port_st)
 {
-	int									sockfd=0;
-	struct sockaddr_in                  dest;
+	int							sockfd=0;
+	struct sockaddr_in                  			dest;
 
 	/* 创建一个socket 用于tcp 通信 */
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
@@ -155,8 +155,8 @@ int socket_init(ip_port ip_port_st)
 
 void ShowCerts(SSL * ssl) 
 {
-	X509 * cert;
-	char * line;
+	X509 					* cert;
+	char 					* line;
 	cert = SSL_get_peer_certificate(ssl);
 	if (cert != NULL) 
 	{
