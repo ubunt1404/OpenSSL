@@ -159,7 +159,8 @@ SSL_CTX *SSL_init(opt_arg opt_rt)
 
 	/* 验证客户端的身份 */
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-	if (SSL_CTX_load_verify_locations(ctx, "ca.crt",NULL)<=0){
+	if (SSL_CTX_load_verify_locations(ctx, "ca.crt",NULL)<=0)
+	{
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
