@@ -18,16 +18,18 @@
 #define LISTEN_BACKLOG 13
 
 int getopt_client(int argc,char **argv);
-int stunnel_socket_init_to_client(short int port);
+int stunnel_socket_init_to_client(int port);
 int stunnel_get_client_fd(int stl_socket_fd,int port);
 SSL_CTX * SSL_init();
 void ShowCerts(SSL * ssl);
-int stunnel_socket_init_to_server(ip_port ip_port_st);
+int stunnel_socket_init_to_server(char *ip,int port);
 
 int main(int argc,char *argv[])
 {
-	short int							port=0;
-	int									socket_fd=0;
+	short int							port_cli=0;
+	short int                           port_sev=0;
+	int									socket_fd_cli=0;
+	int                                 socket_fd_sev=0;
 	struct sockaddr_in                  client_dest_addr;
 	int								    client_fd=0;
 	SSL_CTX *							ctx;
@@ -35,18 +37,19 @@ int main(int argc,char *argv[])
 	struct sockaddr_in					dest;
 	char								buffer[128];
 	SSL									*ssl;
+	char								*ip="127.0.0.1";
 
-	port=getopt_client(argc,argv);
+	port_cli=getopt_client(argc,argv);
 
 	/*ssl init*/
 	ctx=SSL_init();
 
 	/*初始化一个socket,并监听client端来连接的端口 */
-	socket_fd = stunnel_listen_client_port(port);
+	socket_fd_cli =stunnel_socket_init_to_client(port_cli);
 
 	while (1)
 	{
-		client_fd=stunnel_get_client_fd(socket_fd,port);
+		client_fd=stunnel_get_client_fd(socket_fd_cli,port_cli);
 		if (client_fd < 0)
 		{
 			printf("stunnel accept client error,get client_fd failture!\n");
@@ -54,11 +57,13 @@ int main(int argc,char *argv[])
 		}
 		printf("success get client fd!\n");
 
+		
+		socket_fd_sev=stunnel_socket_init_to_server(ip,port_sev);
 		/* 基于ctx 产生一个新的SSL */
 		ssl = SSL_new(ctx);
 
 		/* 将新连接的socket 加入到SSL */
-		SSL_set_fd(ssl, sockfd);
+		SSL_set_fd(ssl,socket_fd_sev);
 
 		/* 建立SSL 连接*/
 		if (SSL_connect(ssl) == -1) 
@@ -101,7 +106,7 @@ finish:
 	/* close connect*/
 	SSL_shutdown(ssl);
 	SSL_free(ssl);
-	close(socket_fd);
+	close(socket_fd_cli);
 	SSL_CTX_free(ctx);
 	return 0;
 }
@@ -139,7 +144,7 @@ int getopt_client(int argc,char **argv)
 	return port;
 }
 
-int stunnel_listen_client_port(short int port) 
+int stunnel_socket_init_to_client(int port) 
 {
 	int									sockfd=0;
 	int									on = 1;
@@ -225,7 +230,7 @@ SSL_CTX * SSL_init()
 	{
 		printf("SSL_CTX_load_verify_locations error!\n");
 		ERR_print_errors_fp(stderr);
-		return -1;
+		exit(1);
 	}
 	return ctx;
 }
@@ -253,7 +258,7 @@ void ShowCerts(SSL * ssl)
 }
 
 
-int stunnel_socket_init_to_server(char *ip,int port);
+int stunnel_socket_init_to_server(char *ip,int port)
 {
 	int									sockfd=0;
 	struct sockaddr_in                  dest;
@@ -265,15 +270,15 @@ int stunnel_socket_init_to_server(char *ip,int port);
 		exit(errno);
 	}
 	printf("stunnel created socket to server!\n");
-	printf("ip is:%s,port is:%d\n",ip_port_st.ip,ip_port_st.port);
+	printf("ip is:%s,port is:%d\n",ip,port);
 
 	/* 初始化服务器端（对方）的地址和端口信息 */
 	bzero( &dest, sizeof(dest));
 	dest.sin_family = AF_INET;
-	dest.sin_port = htons(ip_port_st.port);
-	if (inet_aton(ip_port_st.ip,(struct in_addr *)&dest.sin_addr.s_addr) == 0) 
+	dest.sin_port = htons(port);
+	if (inet_aton(ip,(struct in_addr *)&dest.sin_addr.s_addr) == 0) 
 	{
-		perror(ip_port_st.ip);
+		perror(ip);
 		exit(errno);
 	}
 	printf("address created\n");
