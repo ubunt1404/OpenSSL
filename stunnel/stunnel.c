@@ -54,10 +54,12 @@ int stunnel_socket_init_to_server(char *ip,int port);
 void* work_func(void* arg);
 
 int create_thread_to_listen(str_stunnel *ip_port_stunnel);
-int epoll_to_listen_events(int socket_fd,str_stunnel *ip_port_stunnel);
+int epoll_init(int socket_fd);
+int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunnel);
 SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunnel);
-void transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events);
+int transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events);
 
+static int							count=0;
 int main(int argc,char *argv[])
 {
 	int									port_cli=0;
@@ -73,25 +75,21 @@ int main(int argc,char *argv[])
 	SSL									*ssl;
 
 	int									i=0;
+	int									parser_rt=0;
 	str_stunnel							ip_port_stunnel[MAX];					
 
 	/*parser ini conf file */
-	i=conf_parser(PATH,MAX,ip_port_stunnel);
-	if(i<0)
+	parser_rt=conf_parser(PATH,MAX,ip_port_stunnel);
+	if(parser_rt<0)
 		printf("parser ini file failture!\n");
 
 	for(i=1;i<=MAX;i++)
 	{
-		printf("stunnel[%d].server_port is:%d\n", i-1,ip_port_stunnel[i-1].server_port);
-		printf("stunnel[%d].server_ip is:%s\n", i-1,ip_port_stunnel[i-1].server_ip);
-		printf("stunnel[%d].client_port is:%d\n", i-1,ip_port_stunnel[i-1].client_port);
+		printf("stunnel[%d].server_port is:%d\n", i,ip_port_stunnel[i].server_port);
+		printf("stunnel[%d].server_ip is:%s\n", i,ip_port_stunnel[i].server_ip);
+		printf("stunnel[%d].client_port is:%d\n", i,ip_port_stunnel[i].client_port);
 
-	}
-	while(1)
-	{
-		create_thread_to_listen(&ip_port_stunnel[1]);
-		printf("at line:%d\n",__LINE__);
-		sleep(30);
+		create_thread_to_listen(&ip_port_stunnel[i]);
 	}
 }
 
@@ -174,6 +172,7 @@ SSL_CTX * SSL_init(str_stunnel *ip_port_stunnel)
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	if (ctx == NULL) 
 	{
+		printf("at line %d CTX_new error!\n",__LINE__);
 		ERR_print_errors_fp(stdout);
 		exit(1);
 	}
@@ -186,6 +185,8 @@ SSL_CTX * SSL_init(str_stunnel *ip_port_stunnel)
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
+
+	printf("CA file is:%s\n",ip_port_stunnel->CAfile);
 	return ctx;
 }
 
@@ -215,11 +216,11 @@ void ShowCerts(SSL * ssl)
 
 int stunnel_socket_init_to_server(char *ip,int port)
 {
-	int									sockfd=0;
+	int									server_fd=0;
 	struct sockaddr_in                  dest;
 
-	/* 创建一个socket 用于tcp 通信 */
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
+	/*create socket*/
+	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
 	{
 		perror("Socket");
 		exit(errno);
@@ -227,7 +228,7 @@ int stunnel_socket_init_to_server(char *ip,int port)
 	printf("stunnel created socket to server!\n");
 	printf("ip is:%s,port is:%d\n",ip,port);
 
-	/* 初始化服务器端（对方）的地址和端口信息 */
+	/* init port 、IP*/
 	bzero( &dest, sizeof(dest));
 	dest.sin_family = AF_INET;
 	dest.sin_port = htons(port);
@@ -236,16 +237,15 @@ int stunnel_socket_init_to_server(char *ip,int port)
 		perror(ip);
 		exit(errno);
 	}
-	printf("address created\n");
 
-	/* 连接服务器 */
-	if (connect(sockfd, (struct sockaddr * ) &dest, sizeof(dest)) != 0) 
+	/* connect to server */
+	if (connect(server_fd, (struct sockaddr * ) &dest, sizeof(dest)) < 0) 
 	{
 		perror("Connect ");
 		exit(errno);
 	}
-	printf("server connected\n");
-	return sockfd;
+	printf("stunnel success connected server!\n");
+	return server_fd;
 }
 
 
@@ -285,18 +285,18 @@ int conf_parser(char *path,int max,str_stunnel *ip_port_stunnel)
 
 		if( str_ip&&client_port )
 		{
-			printf("stunnel%d parser is ok!\n",i-1);
-			printf("tunnel%d:[%d====>%s]\n",i-1,client_port,str_ip);
+			printf("stunnel%d parser is ok!\n",i);
+			printf("tunnel%d:[%d====>%s]\n",i,client_port,str_ip);
 			printf("CAfile is :%s\n", str_CA);
 		}
 		else
 			return -1;
 
-		/*load data to struct ip_port_stunnel[i-1] */
-		ip_port_stunnel[i-1].server_port =atoi(str_ip_point+1);	
-		ip_port_stunnel[i-1].server_ip = strtok(str_ip,":");
-		ip_port_stunnel[i-1].client_port = client_port;
-		ip_port_stunnel[i-1].CAfile=str_CA;
+		/*load data to struct ip_port_stunnel[i] */
+		ip_port_stunnel[i].server_port =atoi(str_ip_point+1);	
+		ip_port_stunnel[i].server_ip = strtok(str_ip,":");
+		ip_port_stunnel[i].client_port = client_port;
+		ip_port_stunnel[i].CAfile=str_CA;
 	}
 }
 
@@ -325,7 +325,7 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 	}
 
 	/*set thread attribution to detached PTHREAD_CREATE_DETACHED*/
-	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE) )
+	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED) )
 	{
 		printf("pthread_attr_setdetachstate() failure: %s\n", strerror(errno));
 		goto CleanUp;
@@ -333,8 +333,7 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 
 	/*create child thread */
 	pthread_create(&tid,&thread_attr,work_func,ip_port_stunnel);					
-	printf("at line %d tid is:%lu\n",__LINE__, tid);
-
+	while(1);
 CleanUp:
 	return 0;
 }
@@ -349,27 +348,56 @@ void* work_func(void* arg)
 	int									socket_fd=0;
 	int									client_fd=0;
 	int									epoll_rt=0;
+	int									epollfd;
 
 	ip_port_stunnel=arg;
-	printf("line:%d\n",__LINE__);
-	
+
 	/*establish a socket connection with client */
 	socket_fd =stunnel_socket_init_to_client(ip_port_stunnel->client_port);
-	printf("line:%d,socket_fd:%d\n",__LINE__,socket_fd);
-	printf("client_port is:%d\n",ip_port_stunnel->client_port);
+	printf("at line:%d,socket_fd is:%d\n",__LINE__,socket_fd);
+
+	epollfd=epoll_init(socket_fd);
+	if(epollfd<0)
+	{
+		printf("epoll_create() failure: %s\n", strerror(errno));
+	}
 	while(1)
 	{
 		/*add socket_fd to epoll prevent lose event */
-		epoll_rt=epoll_to_listen_events(socket_fd,ip_port_stunnel);
+		epoll_rt=epoll_to_listen_events(epollfd,socket_fd,ip_port_stunnel);
 		if(epoll_rt<0)
 			printf("you will did\n");
-		//create_connect_to_server();
-		//create_ssl();
-		//transfer_data();
 	}
 }
 
-int epoll_to_listen_events(int socket_fd,str_stunnel *ip_port_stunnel)
+int epoll_init(int socket_fd)
+{
+
+	int									epollfd;
+	struct epoll_event					event;
+	struct epoll_event					event_array[MAX_EVENTS];
+	int									events;
+
+	/*创建epoll对象实例，size指定要通过epoll实例来检查的文件描述符个数*/
+	if( (epollfd=epoll_create(MAX_EVENTS)) < 0 )
+	{
+		printf("epoll_create() failure: %s\n", strerror(errno));
+		return -1;
+	}
+
+	event.events = EPOLLIN;//可读取非高优先级数据
+	event.data.fd = socket_fd;
+
+	/* 并指定listenfd文件描述符上我们感兴趣的事件(event.events=EPOLLIN)*/
+	if( epoll_ctl(epollfd, EPOLL_CTL_ADD,socket_fd, &event) < 0)
+	{
+		printf("epoll add listen socket failure: %s\n", strerror(errno));
+		return -2;
+	}
+	return epollfd;
+}
+
+int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunnel)
 {
 	int									listenfd=0; 
 	int									client_fd=0;
@@ -384,27 +412,11 @@ int epoll_to_listen_events(int socket_fd,str_stunnel *ip_port_stunnel)
 	int									events;
 	SSL									*ssl=NULL;
 	stunnel_map							stl_map[MAX_EVENTS];
+	int									trans_rt=0;
 
-	/*创建epoll对象实例，size指定要通过epoll实例来检查的文件描述符个数*/
-	if( (epollfd=epoll_create(MAX_EVENTS)) < 0 )
-	{
-		printf("epoll_create() failure: %s\n", strerror(errno));
-		return -3;
-	}
-
-	event.events = EPOLLIN;//可读取非高优先级数据
-	event.data.fd = socket_fd;
-
-	/* 并指定listenfd文件描述符上我们感兴趣的事件(event.events=EPOLLIN)*/
-	if( epoll_ctl(epollfd, EPOLL_CTL_ADD,socket_fd, &event) < 0)
-	{
-		printf("epoll add listen socket failure: %s\n", strerror(errno));
-		return -4;
-	}
-
-	/* 一直 阻塞 通过event_array指向的结构体返回就绪态文件描述符的信息 */
+	/* blocking here ,through event_arrary return fd info */
 	printf("I'm waiting client to connect...\n");
-	events = epoll_wait(epollfd, event_array, MAX_EVENTS, -1);
+	events = epoll_wait(epoll_fd, event_array, MAX_EVENTS, -1);
 	if(events < 0)
 	{
 		printf("epoll failure: %s\n", strerror(errno));
@@ -417,11 +429,10 @@ int epoll_to_listen_events(int socket_fd,str_stunnel *ip_port_stunnel)
 	}
 
 
-
-	/* rv>0 is the active events count */
+	/* rv>0 has active events */
 	for(i=0; i<events; i++)
 	{
-		/*发生错误或出现挂断*/
+		/* error or hang up */
 		if ( (event_array[i].events&EPOLLERR) || (event_array[i].events&EPOLLHUP) )
 		{
 			printf("epoll_wait get error on fd[%d]: %s\n", event_array[i].data.fd, strerror(errno));
@@ -432,45 +443,52 @@ int epoll_to_listen_events(int socket_fd,str_stunnel *ip_port_stunnel)
 		/* new client is coming */
 		if( event_array[i].data.fd == socket_fd )
 		{ 
+			/*accept client */
 			client_fd=stunnel_get_client_fd(socket_fd,ip_port_stunnel->client_port);
-			if( client_fd < 0)
-			{
-				printf("accept new client failure: %s\n", strerror(errno));
-				continue;
-			}
-			event.events =  EPOLLIN|EPOLLET;//可读取非优先级数据、边沿触发
+
+			event.events =  EPOLLIN|EPOLLET;
 			event.data.fd = client_fd;
-			if( epoll_ctl(epollfd, EPOLL_CTL_ADD, client_fd, &event) < 0 )
+			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) < 0 )
 			{
 				printf("epoll add client socket failure: %s\n", strerror(errno));
 				close(event_array[i].data.fd);//关闭就绪态文件描述符
 				continue;
 			}
-			printf("epoll add new client socket[%d] ok.\n", client_fd);
+			printf("epoll add new client_fd is:%d \n", client_fd);
 
 
 			/*create ssl to server */
 			server_fd= stunnel_socket_init_to_server(ip_port_stunnel->server_ip,ip_port_stunnel->server_port);
+
 			event.data.fd = server_fd;
 			event.events =  EPOLLIN|EPOLLET;//可读取非优先级数据、边沿触发
-			if( epoll_ctl(epollfd, EPOLL_CTL_ADD, server_fd, &event) < 0 )
+			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) < 0 )
 			{
 				printf("epoll add server socket failure: %s\n", strerror(errno));
 				close(event_array[i].data.fd);//关闭就绪态文件描述符
 				continue;
 			}
 			else
-				ssl=stunnel_ssl_init_to_server(&stl_map[i],ip_port_stunnel);
+			{
+				printf("at line:%d\n",__LINE__);
+				stl_map[count].client_fd= client_fd;
+				stl_map[count].server_fd= server_fd;
+				ssl=stunnel_ssl_init_to_server(&stl_map[count],ip_port_stunnel);
+				stl_map[count].ssl=ssl;
+				count++;
+				printf("ssl init ok ! at line:%d\n",__LINE__);
+			}
 
-			stl_map[i].client_fd=client_fd;
-			stl_map[i].server_fd=server_fd;
-			stl_map[i].ssl=ssl;
-		}
-
-		/* 已经连接的客户有发数据来 */
+		}		
 		else
-			transmit(&stl_map[i],&event_array[i],events);
-	} /* for(i=0; i<rv; i++) */
+		{
+			trans_rt=transmit(stl_map,&event_array[i],events);
+			if(trans_rt<0)
+				printf("at line %d transmit failture!\n",__LINE__);		
+		}
+	}
+
+	return 0;
 
 CleanUp:
 	close(listenfd);
@@ -494,8 +512,9 @@ SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunn
 	/* establish SSL connection */
 	if (SSL_connect(ssl) == -1) 
 	{
+		printf("at line %d SSL_connect error!\n",__LINE__);
 		ERR_print_errors_fp(stderr);
-	}
+	}	
 	else 
 	{
 		printf("Connected with %s encryption\n", SSL_get_cipher(ssl));
@@ -505,72 +524,85 @@ SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunn
 	return ssl;
 }
 
-void transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events)
+int transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events)
 {
 	int									i=0;
 	int									j=0;	
 	char								buffer[128];
 	int								    len=0;
+	int								    write_rt=0;
+	int									read_rt=0;
 
 	bzero(buffer, sizeof(buffer));
-
+	printf("at line %d\n",__LINE__);
 	/*后面的读写操作必须根据多路复用来实现 */
-	for(i=0; i<events; i++)
+	for(i=0;i<count;i++)
 	{
-		for(j=0;j<MAX_EVENTS ;j++)
+		/* receive data*/
+		if(event_array->data.fd == stl_map[i].server_fd)
 		{
-			/* receive data*/
-			if(event_array[i].data.fd == stl_map[j].server_fd)
+			printf("found ok!\n");
+			len = SSL_read(stl_map[i].ssl, buffer, sizeof(buffer));
+			if (len > 0) 
 			{
-				len = SSL_read(stl_map[j].ssl, buffer, sizeof(buffer));
-				if (len > 0) 
+				printf("stunnel success receive %d bytes from server content is:'%s'\n", len,buffer);
+				write_rt=write(stl_map[i].client_fd, buffer, sizeof(buffer));
+				printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
+				if(write_rt>0)
 				{
-					printf("client success receive %d bytes from server content is:'%s'\n", len,buffer);
-					len=write(stl_map[j].client_fd, buffer, sizeof(buffer));
-					if(len>0)
-					{
-						printf("stunnel write to client success!\n");
-					}
-
+					printf("stunnel write to client success!\n");
+					return 0;
 				}
-				else 
+				else
 				{
-					printf("read failture! errno code:%d error info'%s'\n", errno, strerror(errno));
-					goto finish;
+					printf("stunnel write client failture!\n");
+					return -1;
 				}
-
-				bzero(buffer, sizeof(buffer));
-				strcpy(buffer, "stunnel success receive!");
 			}
-
-
-			/*send message*/
-			else
+			else 
 			{
-				len = read(stl_map[j].client_fd, buffer, strlen(buffer));
-				if (len < 0) 
+				printf("stunnel SSL_read failture! error info'%s'\n", strerror(errno));
+				return -2;	
+			}
+		}
+
+
+		/*send message*/
+		if(event_array->data.fd == stl_map[i].client_fd)
+		{
+			bzero(buffer, sizeof(buffer));
+			printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
+			len = read(stl_map[i].client_fd, buffer, sizeof(buffer));
+			printf("at line %d stunnel read data is :%s\n",__LINE__,buffer);
+
+			if (len < 0) 
+			{
+				printf("read failture! error info:%s\n",strerror(errno));			
+				return -3;
+			}
+			else 
+			{
+				/*this section is ok!*/
+				printf("stunnel success read %d bytes from client! \n",len);
+				//memcpy(buffer,"I'm stunnel!",20);
+				printf("SSL start write!\n");
+				len=SSL_write(stl_map[i].ssl,buffer,sizeof(buffer));
+				if(len>0)
 				{
-					printf("write failture! errno code:%d，error info:%s\n",errno, strerror(errno));
+					printf("stunnel success ssl_write\n");
+					return 0;
 				}
-				else 
+				else
 				{
-					printf("client success send %d bytes! \n",len);
-					len=SSL_write(stl_map[j].ssl,buffer,strlen(buffer));
-					if(len>0)
-					{
-						printf("stunnel success ssl_write\n");
-					}
+					printf("SSL_write failture!\n");
+					return -4;
 				}
 			}
 		}
+		else
+		{
+			printf("event not happen!\n");
+			return -1;
+		}
 	}
-
-finish:
-	/* close connection*/	
-	//pthread_attr_destroy(&thread_attr);
-	SSL_shutdown(stl_map[j].ssl);
-	SSL_free(stl_map[j].ssl);
-	close(stl_map[j].server_fd);
-	//SSL_CTX_free(ctx);
-	//return 0;
 }
