@@ -28,7 +28,6 @@
 #define MAX  5
 #define LISTEN_BACKLOG 13
 #define MAX_EVENTS          32
-#define ARRAY_SIZE(x)       (sizeof(x)/sizeof(x[0]))
 
 typedef struct
 {	
@@ -57,7 +56,7 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel);
 int epoll_init(int socket_fd);
 int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunnel);
 SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunnel);
-int transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events);
+int transmit(stunnel_map *stl_map,struct epoll_event *event_array);
 
 static int							count=0;
 int main(int argc,char *argv[])
@@ -325,7 +324,7 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 	}
 
 	/*set thread attribution to detached PTHREAD_CREATE_DETACHED*/
-	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED) )
+	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE) )
 	{
 		printf("pthread_attr_setdetachstate() failure: %s\n", strerror(errno));
 		goto CleanUp;
@@ -333,7 +332,7 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 
 	/*create child thread */
 	pthread_create(&tid,&thread_attr,work_func,ip_port_stunnel);					
-	while(1);
+	while(1);//use to test 
 CleanUp:
 	return 0;
 }
@@ -482,7 +481,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunn
 		}		
 		else
 		{
-			trans_rt=transmit(stl_map,&event_array[i],events);
+			trans_rt=transmit(stl_map,&event_array[i]);
 			if(trans_rt<0)
 				printf("at line %d transmit failture!\n",__LINE__);		
 		}
@@ -524,7 +523,7 @@ SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunn
 	return ssl;
 }
 
-int transmit(stunnel_map *stl_map,struct epoll_event *event_array,int events)
+int transmit(stunnel_map *stl_map,struct epoll_event *event_array)
 {
 	int									i=0;
 	int									j=0;	
