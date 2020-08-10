@@ -24,9 +24,8 @@
 #include "dictionary.h"
 #include "iniparser.h"
 
-#define PATH "/home/google/workspace/program_stunnel/stunnel/stunnel.conf"
-#define MAX  5
-#define LISTEN_BACKLOG 13
+#define MAX					 5
+#define LISTEN_BACKLOG		13
 #define MAX_EVENTS          32
 
 typedef struct
@@ -44,21 +43,25 @@ typedef struct map
 	SSL								*ssl;
 }stunnel_map;
 
+char *get_opt_long(int argc, char **argv);
 int conf_parser(char *path,int max,str_stunnel *ip_port_stunnel);
 int stunnel_socket_init_to_client(int port);
 int stunnel_get_client_fd(int stl_socket_fd,int port);
-SSL_CTX * SSL_init(str_stunnel *ip_port_stunnel);
+SSL_CTX *SSL_init(str_stunnel *ip_port_stunnel);
 void ShowCerts(SSL * ssl);
 int stunnel_socket_init_to_server(char *ip,int port);
-void* work_func(void* arg);
+void *work_func(void* arg);
 
 int create_thread_to_listen(str_stunnel *ip_port_stunnel);
 int epoll_init(int socket_fd);
 int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunnel);
-SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunnel);
+SSL *stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunnel);
 int transmit(stunnel_map *stl_map,struct epoll_event *event_array);
 
-static int							count=0;
+void signal_stop(int signum);
+
+static int								count= 0;
+static int								g_sigstop= 0;
 int main(int argc,char *argv[])
 {
 	int									port_cli=0;
@@ -76,12 +79,16 @@ int main(int argc,char *argv[])
 	int									i=0;
 	int									parser_rt=0;
 	str_stunnel							ip_port_stunnel[MAX];					
+	char							    *path=NULL;
+
+	/*argument parser to get conf file path*/
+	path=get_opt_long(argc,argv);
 
 	/*parser ini conf file */
-	parser_rt=conf_parser(PATH,MAX,ip_port_stunnel);
+	parser_rt=conf_parser(path,MAX,ip_port_stunnel);
 	if(parser_rt<0)
 		printf("parser ini file failture!\n");
-
+	
 	for(i=1;i<=MAX;i++)
 	{
 		printf("stunnel[%d].server_port is:%d\n", i,ip_port_stunnel[i].server_port);
@@ -156,7 +163,7 @@ int stunnel_get_client_fd(int stl_socket_fd,int port)
 
 SSL_CTX * SSL_init(str_stunnel *ip_port_stunnel)
 {
-	SSL_CTX			*ctx;
+	SSL_CTX								*ctx;
 
 	/* SSL lib init*/
 	SSL_library_init();
@@ -192,8 +199,8 @@ SSL_CTX * SSL_init(str_stunnel *ip_port_stunnel)
 
 void ShowCerts(SSL * ssl) 
 {
-	X509 * cert;
-	char * line;
+	X509								* cert;
+	char								* line;
 	cert = SSL_get_peer_certificate(ssl);
 	if (cert != NULL) 
 	{
@@ -250,13 +257,13 @@ int stunnel_socket_init_to_server(char *ip,int port)
 
 int conf_parser(char *path,int max,str_stunnel *ip_port_stunnel)
 {
-	dictionary						*ini= NULL;
-	char							key[64];
-	int								i=0;
-	char						    *str_ip=NULL;
-	char							*str_ip_point=NULL;
-	int								client_port;
-	char							*str_CA=NULL;
+	dictionary							*ini= NULL;
+	char								key[64];
+	int									i=0;
+	char								*str_ip=NULL;
+	char								*str_ip_point=NULL;
+	int									client_port;
+	char								*str_CA=NULL;
 
 	ini = iniparser_load(path);
 	if( ini ==NULL)
@@ -306,8 +313,8 @@ int conf_parser(char *path,int max,str_stunnel *ip_port_stunnel)
  * */
 int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 {
-	pthread_attr_t						 thread_attr;
-	pthread_t							 tid;
+	pthread_attr_t						thread_attr;
+	pthread_t							tid;
 
 	/*init thread attribution "thread_attr"*/
 	if( pthread_attr_init(&thread_attr) )
@@ -323,21 +330,23 @@ int create_thread_to_listen(str_stunnel *ip_port_stunnel)
 		goto CleanUp;
 	}
 
-	/*set thread attribution to detached PTHREAD_CREATE_DETACHED*/
-	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE) )
+	/*set thread attribution to detached PTHREAD_CREATE_DETACHED 、PTHREAD_CREATE_JOINABLE*/
+	if( pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED) )
 	{
 		printf("pthread_attr_setdetachstate() failure: %s\n", strerror(errno));
 		goto CleanUp;
 	}
 
 	/*create child thread */
-	pthread_create(&tid,&thread_attr,work_func,ip_port_stunnel);					
+	pthread_create(&tid,&thread_attr,work_func,ip_port_stunnel);
+
 	while(1);//use to test 
 CleanUp:
+	pthread_attr_destroy(&thread_attr);
 	return 0;
 }
 
-
+/*statement:when a thread exits the opened file descriptors do not actively(主动) release */
 void* work_func(void* arg)
 {
 	char								buf[1024];
@@ -350,7 +359,10 @@ void* work_func(void* arg)
 	int									epollfd;
 
 	ip_port_stunnel=arg;
-
+	
+	/*install signale */
+	signal(SIGINT, signal_stop);
+	
 	/*establish a socket connection with client */
 	socket_fd =stunnel_socket_init_to_client(ip_port_stunnel->client_port);
 	printf("at line:%d,socket_fd is:%d\n",__LINE__,socket_fd);
@@ -360,7 +372,7 @@ void* work_func(void* arg)
 	{
 		printf("epoll_create() failure: %s\n", strerror(errno));
 	}
-	while(1)
+	while(!g_sigstop)
 	{
 		/*add socket_fd to epoll prevent lose event */
 		epoll_rt=epoll_to_listen_events(epollfd,socket_fd,ip_port_stunnel);
@@ -391,6 +403,7 @@ int epoll_init(int socket_fd)
 	if( epoll_ctl(epollfd, EPOLL_CTL_ADD,socket_fd, &event) < 0)
 	{
 		printf("epoll add listen socket failure: %s\n", strerror(errno));
+		close(socket_fd);
 		return -2;
 	}
 	return epollfd;
@@ -583,7 +596,6 @@ int transmit(stunnel_map *stl_map,struct epoll_event *event_array)
 			{
 				/*this section is ok!*/
 				printf("stunnel success read %d bytes from client! \n",len);
-				//memcpy(buffer,"I'm stunnel!",20);
 				printf("SSL start write!\n");
 				len=SSL_write(stl_map[i].ssl,buffer,sizeof(buffer));
 				if(len>0)
@@ -598,10 +610,58 @@ int transmit(stunnel_map *stl_map,struct epoll_event *event_array)
 				}
 			}
 		}
-		else
+	}
+}
+
+
+char * get_opt_long(int argc, char **argv)
+{
+	int									c=0;
+	int									digit_optind = 0;
+	char								*path=NULL;
+
+	const struct option long_options[] = 
+	{
+		{"help"	  ,		   no_argument, 0,  'h' },
+		{"version",		   no_argument, 0,  'v' },
+		{"conf"   ,  required_argument, 0,  'c' },
+		{0		  ,					 0, 0,   0  }
+	};
+
+	while( (c=getopt_long(argc, argv, "c:hv",long_options, NULL))!=-1 )
+	{
+		switch (c) 
 		{
-			printf("event not happen!\n");
-			return -1;
+			case 'c':
+				path=optarg;
+				break;
+			case 'h':
+				printf("conf file path: -c, --conf [args]\nhelp: -h, --help\nversion: -v ,--version\n");
+				break;
+			case 'v':
+				printf("stunnel version 1.0\n");
+				break;
 		}
+	}
+
+	if((path==NULL))
+	{
+		printf("Please input --conf to load conf file path!\n");
+		printf("c is :%d\n",c);
+		exit(0);
+	}
+	else 
+		printf("get path is:%\n",path);
+
+	return path;
+}
+
+void signal_stop(int signum)
+{
+	if(signum == SIGINT)
+	{
+		//printf("stunnel will eixt!\n");
+		g_sigstop = 1;
+		exit(0);
 	}
 }
