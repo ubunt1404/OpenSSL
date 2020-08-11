@@ -25,15 +25,15 @@
 #include "iniparser.h"
 
 #define MAX					 5
-#define LISTEN_BACKLOG		13
-#define MAX_EVENTS          32
+#define LISTEN_BACKLOG				13
+#define MAX_EVENTS          			32
 
 typedef struct
 {	
 	int								client_port;
-	char							*server_ip;
+	char								*server_ip;
 	int								server_port;
-	char							*CAfile;
+	char								*CAfile;
 }str_stunnel;
 
 typedef struct map
@@ -64,22 +64,22 @@ static int								count= 0;
 static int								g_sigstop= 0;
 int main(int argc,char *argv[])
 {
-	int									port_cli=0;
-	int									port_sev=0;
-	int									socket_fd_cli=0;
-	int                                 socket_fd_sev=0;
-	struct sockaddr_in                  client_dest_addr;
-	int								    client_fd=0;
+	int								port_cli=0;
+	int								port_sev=0;
+	int								socket_fd_cli=0;
+	int                                 				socket_fd_sev=0;
+	struct sockaddr_in                  				client_dest_addr;
+	int								client_fd=0;
 	SSL_CTX *							ctx;
-	int									len=0;
-	struct sockaddr_in					dest;
+	int								len=0;
+	struct sockaddr_in						dest;
 	char								buffer[128];
-	SSL									*ssl;
+	SSL								*ssl;
 
-	int									i=0;
-	int									parser_rt=0;
+	int								i=0;
+	int								parser_rt=0;
 	str_stunnel							ip_port_stunnel[MAX];					
-	char							    *path=NULL;
+	char							    	*path=NULL;
 
 	/*argument parser to get conf file path*/
 	path=get_opt_long(argc,argv);
@@ -102,11 +102,11 @@ int main(int argc,char *argv[])
 
 int stunnel_socket_init_to_client(int port) 
 {
-	int									sockfd=0;
-	int									on = 1;
-	struct sockaddr_in					serv_addr;
-	struct sockaddr_in                  client_dest_addr;
-	int								    client_fd=0;
+	int								sockfd=0;
+	int								on = 1;
+	struct sockaddr_in						serv_addr;
+	struct sockaddr_in                  				client_dest_addr;
+	int								client_fd=0;
 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
@@ -143,8 +143,8 @@ int stunnel_socket_init_to_client(int port)
 
 int stunnel_get_client_fd(int stl_socket_fd,int port) 
 {
-	int									client_fd;
-	struct sockaddr_in					client_addr;
+	int								client_fd;
+	struct sockaddr_in						client_addr;
 
 	socklen_t client_size = sizeof(struct sockaddr);
 	memset(&client_addr, 0, client_size);
@@ -222,8 +222,8 @@ void ShowCerts(SSL * ssl)
 
 int stunnel_socket_init_to_server(char *ip,int port)
 {
-	int									server_fd=0;
-	struct sockaddr_in                  dest;
+	int								server_fd=0;
+	struct sockaddr_in                  				dest;
 
 	/*create socket*/
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
@@ -259,10 +259,10 @@ int conf_parser(char *path,int max,str_stunnel *ip_port_stunnel)
 {
 	dictionary							*ini= NULL;
 	char								key[64];
-	int									i=0;
+	int								i=0;
 	char								*str_ip=NULL;
 	char								*str_ip_point=NULL;
-	int									client_port;
+	int								client_port;
 	char								*str_CA=NULL;
 
 	ini = iniparser_load(path);
@@ -350,13 +350,13 @@ CleanUp:
 void* work_func(void* arg)
 {
 	char								buf[1024];
-	int									acpt_fd;
-	int									rv=-1;
+	int								acpt_fd;
+	int								rv=-1;
 	str_stunnel							*ip_port_stunnel;
-	int									socket_fd=0;
-	int									client_fd=0;
-	int									epoll_rt=0;
-	int									epollfd;
+	int								socket_fd=0;
+	int								client_fd=0;
+	int								epoll_rt=0;
+	int								epollfd;
 
 	ip_port_stunnel=arg;
 	
@@ -384,10 +384,10 @@ void* work_func(void* arg)
 int epoll_init(int socket_fd)
 {
 
-	int									epollfd;
+	int							epollfd;
 	struct epoll_event					event;
 	struct epoll_event					event_array[MAX_EVENTS];
-	int									events;
+	int							events;
 
 	/*创建epoll对象实例，size指定要通过epoll实例来检查的文件描述符个数*/
 	if( (epollfd=epoll_create(MAX_EVENTS)) < 0 )
@@ -416,14 +416,14 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,str_stunnel *ip_port_stunn
 	int									server_fd=0;
 	int									rv=0;
 	int									i, j;
-	char								buf[1024];
+	char									buf[1024];
 
 	int									epollfd;
-	struct epoll_event					event;
-	struct epoll_event					event_array[MAX_EVENTS];
+	struct epoll_event							event;
+	struct epoll_event							event_array[MAX_EVENTS];
 	int									events;
 	SSL									*ssl=NULL;
-	stunnel_map							stl_map[MAX_EVENTS];
+	stunnel_map								stl_map[MAX_EVENTS];
 	int									trans_rt=0;
 
 	/* blocking here ,through event_arrary return fd info */
@@ -509,7 +509,7 @@ CleanUp:
 
 SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunnel)
 {
-	SSL									*ssl=NULL;
+	SSL								*ssl=NULL;
 	SSL_CTX								*ctx;
 
 	/*ssl init*/
@@ -538,12 +538,12 @@ SSL * stunnel_ssl_init_to_server(stunnel_map *stl_map,str_stunnel *ip_port_stunn
 
 int transmit(stunnel_map *stl_map,struct epoll_event *event_array)
 {
-	int									i=0;
-	int									j=0;	
+	int								i=0;
+	int								j=0;	
 	char								buffer[128];
-	int								    len=0;
-	int								    write_rt=0;
-	int									read_rt=0;
+	int								len=0;
+	int								write_rt=0;
+	int								read_rt=0;
 
 	bzero(buffer, sizeof(buffer));
 	printf("at line %d\n",__LINE__);
@@ -618,7 +618,7 @@ char * get_opt_long(int argc, char **argv)
 {
 	int									c=0;
 	int									digit_optind = 0;
-	char								*path=NULL;
+	char									*path=NULL;
 
 	const struct option long_options[] = 
 	{
