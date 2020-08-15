@@ -42,8 +42,8 @@ int socket_init_listen(int port);
 int socket_accept_client(int stl_socket_fd,int port);
 int socket_connect_server(char *ip,int port);
 SSL *socket_bind_ssl(stunnel_map *stl_map,stunnel_t *stunnel);
-int socket_forward(stunnel_map *stl_map,struct epoll_event *event_array);
-
+int from_server_forward_to_client(stunnel_map *stl_map);
+int from_client_forward_to_server(stunnel_map *stl_map);
 SSL_CTX *SSL_init(stunnel_t *stunnel);                                                 
 void ShowCerts(SSL * ssl);
 #endif
