@@ -9,7 +9,7 @@ int socket_init_listen(int port)
 	struct sockaddr_in					serv_addr;
 	struct sockaddr_in                  client_dest_addr;
 	int								    client_fd=0;
-	
+
 	if(port<=0)
 	{
 		printf("invalid formal argument 'int port'\n");
@@ -63,7 +63,7 @@ int socket_accept_client(int stl_socket_fd,int port)
 	if (client_fd < 0)		
 	{
 		printf("stunnel accept client connection failure!\n");
-		exit(1);
+		return -1;
 	}
 	printf("client [ip:port] is:[%s:%u]\n",inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
 
@@ -82,7 +82,7 @@ int socket_connect_server(char *ip,int port)
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
 	{
 		printf("stunnel create socket to server failure!\n");
-		exit(1);
+		return -1;
 	}
 	printf("stunnel created socket to server!\n");
 	printf("ip is:%s,port is:%d\n",ip,port);
@@ -94,14 +94,14 @@ int socket_connect_server(char *ip,int port)
 	if (inet_aton(ip,(struct in_addr *)&dest.sin_addr.s_addr) == 0) 
 	{
 		perror(ip);
-		exit(errno);
+		return -2;
 	}
 
 	/* connect to server */
 	if (connect(server_fd, (struct sockaddr * ) &dest, sizeof(dest)) < 0) 
 	{
 		perror("Connect ");
-		exit(errno);
+		return -3;
 	}
 	printf("stunnel success connected server!\n");
 	return server_fd;
@@ -144,89 +144,84 @@ SSL * socket_bind_ssl(stunnel_map *stl_map,stunnel_t *stunnel)
 	return ssl;
 }
 
-
-int socket_forward(stunnel_map *stl_map,struct epoll_event *event_array)
+int from_client_forward_to_server(stunnel_map *stl_map)
 {
 	int									i=0;
-	int									j=0;	
 	char								buffer[128];
 	int								    len=0;
-	int								    write_rt=0;
-	int									read_rt=0;
 
-	if(!stl_map || !event_array)
+	if(!stl_map)
 	{
 		printf("invalid formal argument\n");
-		exit(1);
+		return -1;
 	}
 
 	bzero(buffer, sizeof(buffer));
-	/*后面的读写操作必须根据多路复用来实现 */
-	for(i=0;i<count;i++)
+	printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
+	len = read(stl_map[i].client_fd, buffer, sizeof(buffer));
+	printf("at line %d stunnel read data is :%s\n",__LINE__,buffer);
+
+	if (len < 0) 
 	{
-		/* receive data*/
-		if(event_array->data.fd == stl_map[i].server_fd)
+		printf("read failture! error info:%s\n",strerror(errno));			
+		return -2;
+	}
+	else 
+	{
+		/*this section is ok!*/
+		printf("stunnel success read %d bytes from client! \n",len);
+		printf("SSL start write!\n");
+		len=SSL_write(stl_map[i].ssl,buffer,sizeof(buffer));
+		if(len>0)
 		{
-			printf("found ok!\n");
-			len = SSL_read(stl_map[i].ssl, buffer, sizeof(buffer));
-			if (len > 0) 
-			{
-				printf("stunnel success receive %d bytes from server content is:'%s'\n", len,buffer);
-				write_rt=write(stl_map[i].client_fd, buffer, sizeof(buffer));
-				printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
-				if(write_rt>0)
-				{
-					printf("stunnel write to client success!\n");
-					return 0;
-				}
-				else
-				{
-					printf("stunnel write client failture!\n");
-					return -1;
-				}
-			}
-			else 
-			{
-				printf("stunnel SSL_read failture! error info'%s'\n", strerror(errno));
-				return -2;	
-			}
+			printf("stunnel success ssl_write\n");
+			return 0;
 		}
-
-
-		/*send message*/
-		if(event_array->data.fd == stl_map[i].client_fd)
+		else
 		{
-			bzero(buffer, sizeof(buffer));
-			printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
-			len = read(stl_map[i].client_fd, buffer, sizeof(buffer));
-			printf("at line %d stunnel read data is :%s\n",__LINE__,buffer);
-
-			if (len < 0) 
-			{
-				printf("read failture! error info:%s\n",strerror(errno));			
-				return -3;
-			}
-			else 
-			{
-				/*this section is ok!*/
-				printf("stunnel success read %d bytes from client! \n",len);
-				printf("SSL start write!\n");
-				len=SSL_write(stl_map[i].ssl,buffer,sizeof(buffer));
-				if(len>0)
-				{
-					printf("stunnel success ssl_write\n");
-					return 0;
-				}
-				else
-				{
-					printf("SSL_write failture!\n");
-					return -4;
-				}
-			}
+			printf("SSL_write failture!\n");
+			return -3;
 		}
 	}
 }
 
+int from_server_forward_to_client(stunnel_map *stl_map)
+{
+	int									i=0;
+	char								buffer[128];
+	int								    len=0;
+
+	if(!stl_map)
+	{
+		printf("invalid formal argument\n");
+		return -1;
+	}
+
+	bzero(buffer, sizeof(buffer));
+	/* receive data*/
+	len = SSL_read(stl_map[i].ssl, buffer, sizeof(buffer));
+	if (len > 0) 
+	{
+		printf("stunnel success receive %d bytes from server content is:'%s'\n", len,buffer);
+		len=write(stl_map[i].client_fd, buffer, sizeof(buffer));
+		printf("at line %d client_fd is %d\n",__LINE__,stl_map[i].client_fd);
+		if(len>0)
+		{
+			printf("stunnel write to client success!\n");
+			return 0;
+		}
+		else
+		{
+			printf("stunnel write client failture!\n");
+			return -2;
+		}
+	}
+	else 
+	{
+		printf("stunnel SSL_read failture! error info'%s'\n", strerror(errno));
+		return -3;	
+	}
+}
 
 SSL_CTX * SSL_init(stunnel_t *stunnel)
 {

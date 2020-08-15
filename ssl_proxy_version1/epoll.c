@@ -54,7 +54,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 		exit(1);
 	}
 
-	
+
 	/* blocking here ,through event_arrary return fd info */
 	printf("I'm waiting client to connect...\n");
 	events = epoll_wait(epoll_fd, event_array, MAX_EVENTS, -1);
@@ -86,7 +86,11 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 		{ 
 			/*accept client */
 			client_fd=socket_accept_client(socket_fd,stunnel->client_port);
-
+			if(client_fd<0)
+			{
+				close(client_fd);
+				continue;
+			}
 			event.events =  EPOLLIN|EPOLLET;
 			event.data.fd = client_fd;
 			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) < 0 )
@@ -100,7 +104,12 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 
 			/*create ssl to server */
 			server_fd= socket_connect_server(stunnel->server_ip,stunnel->server_port);
-
+			if(server_fd<0)
+			{
+				close(client_fd);
+				close(server_fd);
+				continue;
+			}
 			event.data.fd = server_fd;
 			event.events =  EPOLLIN|EPOLLET;//可读取非优先级数据、边沿触发
 			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) < 0 )
@@ -115,6 +124,10 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				stl_map[count].client_fd= client_fd;
 				stl_map[count].server_fd= server_fd;
 				ssl=socket_bind_ssl(&stl_map[count],stunnel);
+				if(!ssl)
+				{
+					goto finish;
+				}
 				stl_map[count].ssl=ssl;
 				count++;
 				printf("ssl init ok ! at line:%d\n",__LINE__);
@@ -123,19 +136,40 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 		}		
 		else
 		{
-			trans_rt=socket_forward(stl_map,&event_array[i]);
-			if(trans_rt<0)
+			for(i=0;i<count;i++)
 			{
-				printf("at line %d socket_forward failture!\n",__LINE__);		
-				continue;
+				/* receive data*/
+				if(event_array->data.fd == stl_map[i].server_fd)
+				{
+					trans_rt=from_server_forward_to_client(stl_map);
+					if(trans_rt<0)
+					{
+						printf("at line %d socket_forward failture!\n",__LINE__);
+						continue;
+					}
+				}
+
+				/*send data*/
+				if(event_array->data.fd == stl_map[i].client_fd)
+				{
+					trans_rt=from_client_forward_to_server(stl_map);
+					if(trans_rt<0)
+					{
+						printf("at line %d socket_forward failture!\n",__LINE__);
+						continue;
+					}
+				}
 			}
 		}
 	}
 
 	return 0;
 
-CleanUp:
-	close(listenfd);
+finish:
+	SSL_shutdown(ssl);
+	SSL_free(ssl);
+	close(server_fd);
+	close(client_fd);
 	return 0;
 }
 
