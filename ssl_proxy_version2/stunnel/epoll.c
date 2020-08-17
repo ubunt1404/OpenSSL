@@ -46,6 +46,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 	stunnel_map							stl_map[MAX_EVENTS];
 	int									trans_rt=0;
 	SSL_CTX *							ctx;
+	int									ret=0;
 
 	if(!stunnel)
 	{
@@ -86,7 +87,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 		{ 
 			/*load self-signed cert\private key and use CAfile verify client*/
 			ctx=SSL_init_client(stunnel->client_CAfile,stunnel);
-			
+
 			/*accept client */
 			client_fd=socket_accept_client(socket_fd,stunnel->client_port);
 			if(client_fd<0)
@@ -95,7 +96,40 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				close(client_fd);
 				continue;
 			}
-			event.events =  EPOLLIN;//|EPOLLET;
+			/* base on ctx craete a new SSL */
+			client_ssl = SSL_new(ctx);
+			if(!client_ssl)
+			{
+				SSL_shutdown(client_ssl);
+				SSL_free(client_ssl);
+				close(client_fd);
+				continue;
+			}
+			/* add socket fd to SSL */
+			SSL_set_fd(client_ssl, client_fd);
+
+			printf("stunnel start SSL_accept...\n");
+			/* establish SSL connection */
+			if (SSL_accept(client_ssl)<0)
+			{
+				printf("stunnel SSL_accept client failure!\n");
+				perror("SSL_accept");
+				SSL_shutdown(client_ssl);
+				SSL_free(client_ssl);
+				close(client_fd);
+				continue;
+			}
+
+			/*ensure TLS/SSL、I/O operate accomplish*/	
+			SSL_get_error(client_ssl,ret);
+			if(ret==SSL_ERROR_NONE )
+			{
+				printf("Connected with %s encryption\n", SSL_get_cipher(client_ssl));
+				ShowCerts(client_ssl);
+			}
+			
+			/*epoll add events*/
+			event.events =  EPOLLIN|EPOLLET;
 			event.data.fd = client_fd;
 			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) < 0 )
 			{
@@ -104,42 +138,6 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				continue;
 			}
 			printf("epoll add new client_fd is:%d \n", client_fd);
-
-			
-			/* 基于ctx 产生一个新的SSL */
-			client_ssl = SSL_new(ctx);
-			if(!client_ssl)
-			{
-				printf("here? 111?\n");
-				SSL_shutdown(client_ssl);
-				SSL_free(client_ssl);
-				close(client_fd);
-				continue;
-			}
-			/* 将连接用户的socket 加入到SSL */
-			SSL_set_fd(client_ssl, client_fd);
-
-			printf("stunnel start SSL_accept...\n");
-			/* 建立SSL 连接*/
-			if (SSL_accept(client_ssl)<0) 
-			{
-				printf("stunnel SSL_accept client failure!\n");
-				perror("accept");
-				SSL_shutdown(client_ssl);
-				SSL_free(client_ssl);
-				close(client_fd);
-				continue;
-			}
-			else if(SSL_accept(client_ssl)==0)
-			{
-				printf("handshake failure!\n");
-				continue;
-			}
-			else
-			{
-				printf("Connected with %s encryption\n", SSL_get_cipher(client_ssl));
-				ShowCerts(client_ssl);
-			}
 
 
 			/*create ssl to server */
@@ -153,7 +151,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				continue;
 			}
 			event.data.fd = server_fd;
-			event.events =  EPOLLIN;//|EPOLLET;//可读取非优先级数据、边沿触发
+			event.events =  EPOLLIN|EPOLLET;//可读取非优先级数据、边沿触发
 			if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) < 0 )
 			{
 				printf("epoll add server socket failure: %s\n", strerror(errno));
@@ -183,6 +181,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 		}		
 		else
 		{
+			/*find map*/
 			for(i=0;i<count;i++)
 			{
 				/* receive data*/
