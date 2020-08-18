@@ -102,7 +102,7 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 			printf("epoll add new client_fd is:%d \n", client_fd);
 
 
-			/*create ssl to server */
+			/*create socket to connect server */
 			server_fd= socket_connect_server(stunnel->server_ip,stunnel->server_port);
 			if(server_fd<0)
 			{
@@ -123,6 +123,8 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				printf("at line:%d\n",__LINE__);
 				stl_map[count].client_fd= client_fd;
 				stl_map[count].server_fd= server_fd;
+
+				/*create ssl connection to server*/
 				ssl=socket_bind_ssl(&stl_map[count],stunnel);
 				if(!ssl)
 				{
@@ -132,10 +134,11 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 				count++;
 				printf("ssl init ok ! at line:%d\n",__LINE__);
 			}
+		}	
 
-		}		
 		else
-		{
+		{	
+			/*find map to forward data*/
 			for(i=0;i<count;i++)
 			{
 				/* receive data*/
@@ -145,6 +148,10 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 					if(trans_rt<0)
 					{
 						printf("at line %d socket_forward failture!\n",__LINE__);
+						SSL_shutdown(stl_map[i].ssl);
+						SSL_free(stl_map[i].ssl);
+						close(stl_map[i].server_fd);
+						close(stl_map[i].client_fd);
 						continue;
 					}
 				}
@@ -156,6 +163,10 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 					if(trans_rt<0)
 					{
 						printf("at line %d socket_forward failture!\n",__LINE__);
+						close(stl_map[i].client_fd);
+						SSL_shutdown(stl_map[i].ssl);
+						SSL_free(stl_map[i].ssl);
+						close(stl_map[i].server_fd);
 						continue;
 					}
 				}

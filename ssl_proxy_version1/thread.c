@@ -76,10 +76,8 @@ void* work_stunnel(void* arg)
 	
 	while(!g_sigstop)
 	{
-		/*add socket_fd to epoll prevent lose event */
+		/*add socket_fd to epoll and keep listening stunnel port*/
 		epoll_rt=epoll_to_listen_events(epollfd,socket_fd,stunnel);
-		if(epoll_rt<0)
-			printf("you will did\n");
 	}
 }
 
