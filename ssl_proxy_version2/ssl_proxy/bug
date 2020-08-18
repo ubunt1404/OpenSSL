@@ -1,5 +1,0 @@
-每次运行stunnel端程序与客户端建立普通socket连接时，stunnel端程序会在SSL_accept()处
-阻塞，会一直卡着，但是多按几次回车程序就会在SSL_accept()处返回一个负数触发continue
-再次通过epoll重新监听,如果这时再CTrl+C结束connect端程序后再次重新运行就可以正常运行
-了，证书信息的打印和转发数据都会正常显示，bug目前还不知道怎么解决
-
