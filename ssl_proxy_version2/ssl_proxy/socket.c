@@ -65,12 +65,13 @@ int socket_accept_client(int stl_socket_fd,int port)
 	if (client_fd < 0)		
 	{
 		printf("stunnel accept client connection failure!\n");
+		perror(accept);
 		return -1;
 	}
 	printf("client [ip:port] is:[%s:%u]\n",inet_ntoa(client_addr.sin_addr),port);
 
 
-	return 0;
+	return client_fd;
 }
 
 
