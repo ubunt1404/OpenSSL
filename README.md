@@ -1,13 +1,14 @@
 ## 1. 文件夹说明 
-- one_way_authentication
+### one_way_authentication
 
-	主要用来学习OpenSSL库，了解什么是单向认证并基于OpenSSL库编程实现C/S模型下的单向认证。
+主要用来学习OpenSSL库，了解什么是单向认证并基于OpenSSL库编程实现C/S模型下的单向认证。
 
-- two_way_authentication
+### two_way_authentication
 	
-  主要用来学习OpenSSL库，了解什么是双向认证并基于OpenSSL库编程实现C/S模型下的双向认证。
+主要用来学习OpenSSL库，了解什么是双向认证并基于OpenSSL库编程实现C/S模型下的双向认证。
 
-- ssl_proxy_version1
+
+### ssl_proxy_version1
 	
   SSL代理服务器程序Version1版本，该程序运行在树莓派或其他Linux设备上，为一些因软、硬件限制(如单片机设备)不能进行SSL/TLS 加密socket通信的设备，提供OpenSSL代理转发到目标SSL/TLS主机的服务。
 
