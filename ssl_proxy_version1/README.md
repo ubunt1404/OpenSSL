@@ -2,7 +2,8 @@
 	SSL代理服务器程序Version1版本，该程序运行在树莓派或其他Linux设备上，
 	为一些因软、硬件限制(如单片机设备)不能进行SSL/TLS 加密socket通信的设备，
 	提供OpenSSL代理转发到目标SSL/TLS主机的服务，主要采用Multithreading+epoll+OpenSSL的框架来实现，
-  	ini文件解析使用开源iniparser库提供的API来完成 https://github.com/ndevilla/iniparser
+  	ini文件解析使用开源iniparser库提供的API来完成  
+[iniparser库API地址](https://github.com/ndevilla/iniparser)
   
 ## 程序设计流程与框架
 ### 该项目多线程框架图
