@@ -89,7 +89,7 @@ finish:
 
 SSL_CTX * SSL_init()
 {
-	SSL_CTX			*ctx;
+	SSL_CTX								*ctx;
 	/* SSL lib init*/
 	SSL_library_init();
 
@@ -120,8 +120,8 @@ SSL_CTX * SSL_init()
 
 int socket_init(ip_port ip_port_st)
 {
-	int							sockfd=0;
-	struct sockaddr_in                  			dest;
+	int								sockfd=0;
+	struct sockaddr_in                  				dest;
 
 	/* 创建一个socket 用于tcp 通信 */
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
@@ -155,8 +155,8 @@ int socket_init(ip_port ip_port_st)
 
 void ShowCerts(SSL * ssl) 
 {
-	X509 					* cert;
-	char 					* line;
+	X509 								* cert;
+	char 								* line;
 	cert = SSL_get_peer_certificate(ssl);
 	if (cert != NULL) 
 	{
