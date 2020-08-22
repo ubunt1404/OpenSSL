@@ -8,17 +8,17 @@
 ip_port getopt_client(int argc,char **argv)
 {
 	ip_port							 ip_po_st;
-	int                              ip_port;
-	unsigned short					 port=0;
-	char*                            ip;
-	int								 c=0;
+	int                              			 ip_port;
+	unsigned short					 	 port=0;
+	char*                            			 ip;
+	int							 c=0;
 
 	const struct option longopts[]=
 	{
-		{"port",  required_argument,0,'p'},
-		{"ip"  ,  required_argument,0,'i'},
-		{"help",  no_argument      ,0,'h'},
-		{NULL,0,NULL,0}
+		{"port",  required_argument,0	,'p'},
+		{"ip"  ,  required_argument,0	,'i'},
+		{"help",  no_argument      ,0	,'h'},
+		{NULL  ,	  0        ,NULL, 0 }
 	};	
 	while((c=getopt_long(argc,argv,"i:p:h",longopts,NULL))!=-1)
 	{
