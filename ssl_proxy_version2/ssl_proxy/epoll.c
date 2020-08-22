@@ -6,8 +6,8 @@
 int epoll_init(int socket_fd)
 {
 	int									epollfd;
-	struct epoll_event					event;
-	struct epoll_event					event_array[MAX_EVENTS];
+	struct epoll_event							event;
+	struct epoll_event							event_array[MAX_EVENTS];
 	int									events;
 
 	/*创建epoll对象实例，size指定要通过epoll实例来检查的文件描述符个数*/
@@ -35,17 +35,17 @@ int epoll_to_listen_events(int epoll_fd,int socket_fd,stunnel_t *stunnel)
 	int									client_fd=-1;
 	int									server_fd=-1;
 	int									i=0;
-	char								buf[1024];
+	char									buf[1024];
 
 	int									epollfd;
-	struct epoll_event					event;
-	struct epoll_event					event_array[MAX_EVENTS];
+	struct epoll_event							event;
+	struct epoll_event							event_array[MAX_EVENTS];
 	int									events;
 	SSL									*client_ssl=NULL;
-	SSL                                 *server_ssl=NULL;
-	stunnel_map							stl_map[MAX_EVENTS];
+	SSL                                 					*server_ssl=NULL;
+	stunnel_map								stl_map[MAX_EVENTS];
 	int									trans_rt=0;
-	SSL_CTX *							ctx;
+	SSL_CTX *								ctx;
 	int									ret=0;
 
 	if(!stunnel)
