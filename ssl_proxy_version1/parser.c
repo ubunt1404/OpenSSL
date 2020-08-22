@@ -11,10 +11,10 @@ int conf_parser(char *path,int max,stunnel_t *stunnel)
 {
 	dictionary							*ini= NULL;
 	char								key[64];
-	int									i=0;
+	int								i=0;
 	char								*str_ip=NULL;
 	char								*str_ip_point=NULL;
-	int									client_port;
+	int								client_port;
 	char								*str_CA=NULL;
 
 	if(!stunnel)
@@ -68,8 +68,8 @@ int conf_parser(char *path,int max,stunnel_t *stunnel)
 
 char * parser_argument(int argc, char **argv)
 {
-	int									c=0;
-	int									digit_optind = 0;
+	int								c=0;
+	int								digit_optind = 0;
 	char								*path=NULL;
 
 	/*function argument valid check. if only has argument './test' print_usage*/
@@ -83,8 +83,8 @@ char * parser_argument(int argc, char **argv)
 	{
 		{"help"	  ,		   no_argument, 0,  'h' },
 		{"version",		   no_argument, 0,  'v' },
-		{"conf"   ,  required_argument, 0,  'c' },
-		{0		  ,					 0, 0,   0  }
+		{"conf"   ,  	     required_argument, 0,  'c' },
+		{0	  ,			     0, 0,   0  }
 	};
 
 	while( (c=getopt_long(argc, argv, "c:hv",long_options, NULL))!=-1 )
