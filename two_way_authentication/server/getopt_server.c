@@ -8,17 +8,17 @@
 
 opt_arg getopt_server(int argc,char *argv[])
 {
-	int                              port_key_cert;
+	int                              				 port_key_cert;
 	int								 c=0;
-	opt_arg							 opt_arg_rt;
+	opt_arg							 	 opt_arg_rt;
 
 	const struct option longopts[]=
 	{
-		{"port",  required_argument,0,'p'},
-		{"cert"  ,  required_argument,0,'c'},
-		{"key"  ,  required_argument,0,'k'},
-		{"help",  no_argument      ,0,'h'},
-		{NULL,0,NULL,0}
+		{"port" ,  required_argument,	0,'p'},
+		{"cert" ,  required_argument,	0,'c'},
+		{"key"  ,  required_argument,	0,'k'},
+		{"help" ,  no_argument      ,	0,'h'},
+		{NULL   ,	0	    ,NULL, 0 }
 	};	
 
 	while((c=getopt_long(argc,argv,"k:p:c:h",longopts,NULL))!=-1)
