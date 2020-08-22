@@ -1,14 +1,14 @@
 #include "socket.h"
 #include "epoll.h"
 #include "parser.h"
-int				count;
+int										count;
 int socket_init_listen(int port) 
 {
 	int									sockfd=0;
 	int									on = 1;
-	struct sockaddr_in					serv_addr;
-	struct sockaddr_in                  client_dest_addr;
-	int								    client_fd=0;
+	struct sockaddr_in							serv_addr;
+	struct sockaddr_in                  					client_dest_addr;
+	int								   	client_fd=0;
 
 	if(port<=0)
 	{
@@ -114,7 +114,7 @@ int socket_connect_server(char *ip,int port)
 SSL * socket_bind_ssl(int server_fd,stunnel_t *stunnel)
 {
 	SSL									*ssl=NULL;
-	SSL_CTX								*ctx;
+	SSL_CTX									*ctx;
 
 	if(!stunnel)
 	{
@@ -149,8 +149,8 @@ SSL * socket_bind_ssl(int server_fd,stunnel_t *stunnel)
 int from_client_forward_to_server(stunnel_map *stl_map)
 {
 	int									i=0;
-	char								buffer[128];
-	int								    len=0;
+	char									buffer[128];
+	int								    	len=0;
 
 	if(!stl_map)
 	{
@@ -189,8 +189,8 @@ int from_client_forward_to_server(stunnel_map *stl_map)
 int from_server_forward_to_client(stunnel_map *stl_map)
 {
 	int									i=0;
-	char								buffer[128];
-	int								    len=0;
+	char									buffer[128];
+	int								    	len=0;
 
 	if(!stl_map)
 	{
