@@ -11,7 +11,7 @@
 int									g_sigstop;
 int create_thread_to_listen(stunnel_t *stunnel)
 {
-	pthread_attr_t						thread_attr;
+	pthread_attr_t							thread_attr;
 	pthread_t							tid;
 	
 	if(!stunnel)
@@ -54,13 +54,13 @@ CleanUp:
 void* work_stunnel(void* arg)
 {
 	char								buf[1024];
-	int									acpt_fd;
-	int									rv=-1;
+	int								acpt_fd;
+	int								rv=-1;
 	stunnel_t							*stunnel;
-	int									socket_fd=0;
-	int									client_fd=0;
-	int									epoll_rt=0;
-	int									epollfd;
+	int								socket_fd=0;
+	int								client_fd=0;
+	int								epoll_rt=0;
+	int								epollfd;
 
 	stunnel=arg;
 	
