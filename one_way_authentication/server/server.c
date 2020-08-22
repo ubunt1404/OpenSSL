@@ -19,13 +19,13 @@ int socket_init(opt_arg opt_rt);
 
 int main(int argc, char * *argv) 
 {
-	int								sockfd, new_fd;
+	int							sockfd, new_fd;
 	socklen_t						len;
-	struct sockaddr_in				my_addr, their_addr;
+	struct sockaddr_in					my_addr, their_addr;
 	char							buf[MAXBUF + 1];
 	SSL_CTX							*ctx;
 	opt_arg							opt_rt;
-	SSL								*ssl;
+	SSL							*ssl;
 
 	/*get key、certification、port*/
 	opt_rt=getopt_server(argc,argv);
@@ -153,7 +153,7 @@ SSL_CTX *SSL_init(opt_arg opt_rt)
 int socket_init(opt_arg opt_rt)
 {
 	struct sockaddr_in				my_addr;
-	int							   sockfd =0;	
+	int						sockfd =0;	
 	/* 开启一个socket 监听*/
 	if ((sockfd = socket(PF_INET, SOCK_STREAM, 0)) == -1) 
 	{
