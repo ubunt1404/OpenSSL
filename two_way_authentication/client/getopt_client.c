@@ -7,20 +7,20 @@
 #include <stdio.h>
 opt_arg getopt_client(int argc,char **argv)
 {
-	opt_arg							 ip_po_st;
-	int                              ip_port;
-	unsigned short					 port=0;
-	char*                            ip;
-	int								 c=0;
+	opt_arg							 	ip_po_st;
+	int                              			 	ip_port;
+	unsigned short					 	 	port=0;
+	char*                            			 	ip;
+	int								c=0;
 
 	const struct option longopts[]=
 	{
-		{"cert",  required_argument,0,'c'},
-		{"key" ,  required_argument,0,'k'},
-		{"port",  required_argument,0,'p'},
-		{"ip"  ,  required_argument,0,'i'},
-		{"help",  no_argument      ,0,'h'},
-		{NULL,0,NULL,0}
+		{"cert",  required_argument,	0,'c'},
+		{"key" ,  required_argument,	0,'k'},
+		{"port",  required_argument,	0,'p'},
+		{"ip"  ,  required_argument,	0,'i'},
+		{"help",  no_argument      ,	0,'h'},
+		{NULL  ,	0	   , NULL, 0 }
 	};	
 	while((c=getopt_long(argc,argv,"c:k:i:p:h",longopts,NULL))!=-1)
 	{
