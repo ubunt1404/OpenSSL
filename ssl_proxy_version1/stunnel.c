@@ -11,19 +11,19 @@ int main(int argc,char *argv[])
 	int									port_cli=0;
 	int									port_sev=0;
 	int									socket_fd_cli=0;
-	int                                 socket_fd_sev=0;
-	struct sockaddr_in                  client_dest_addr;
-	int								    client_fd=0;
-	SSL_CTX *							ctx;
+	int                                 					socket_fd_sev=0;
+	struct sockaddr_in                  					client_dest_addr;
+	int									client_fd=0;
+	SSL_CTX *								ctx;
 	int									len=0;
-	struct sockaddr_in					dest;
-	char								buffer[128];
+	struct sockaddr_in							dest;
+	char									buffer[128];
 	SSL									*ssl;
 
 	int									i=0;
 	int									rv=0;
-	stunnel_t							stunnel[MAX];					
-	char							    *conf_path=NULL;
+	stunnel_t								stunnel[MAX];					
+	char							    		*conf_path=NULL;
 
 	/*argument parser to get conf file path*/
 	conf_path=parser_argument(argc,argv);
