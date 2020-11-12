@@ -24,3 +24,4 @@
 ![双向加密SSL代理](https://images.gitee.com/uploads/images/2020/0820/120215_9d3f5808_5112813.png "双向加密下多线程架构.png")
 ## 3. Version2证书文件匹配关系
 ![version2中所有证书文件的对应关系](https://images.gitee.com/uploads/images/2020/0819/203738_ef610e12_5112813.jpeg "Version2_cert.jpg")
+![version2中所有证书文件的对应关系](https://gitee.com/jake_ma/team_test/blob/master/image_Openssl/Version2_cert.jpg)
